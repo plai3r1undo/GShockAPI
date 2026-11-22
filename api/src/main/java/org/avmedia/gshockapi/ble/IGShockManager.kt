@@ -32,7 +32,13 @@ enum class GetSetMode {
     DATA_REQUEST,
     SP_REQUEST,
     SP_DATA,
+
+    /** 26eb0024: bulk data channel of the life-log file transfer (write without response). */
+    CONVOY,
 }
+
+/** Receives raw notifications from the life-log transfer characteristics (26eb0023 / 26eb0024). */
+typealias RawNotificationListener = (UUID, ByteArray) -> Unit
 
 interface GShock {
     suspend fun connect(
@@ -56,6 +62,12 @@ interface GShock {
     )
 
     fun isServiceSupported(handle: GetSetMode): Boolean
+
+    /**
+     * While set, notifications from the life-log characteristics are delivered here
+     * as raw bytes instead of the hex [IDataReceived] callback. Pass null to restore.
+     */
+    fun setRawNotificationListener(listener: RawNotificationListener?)
 }
 
 class IGShockManager(
@@ -71,6 +83,12 @@ private class GShockManagerImpl(
     private var writeCharacteristicHolderDataRequest: BluetoothGattCharacteristic? = null
     private var writeCharacteristicHolderSPRequest: BluetoothGattCharacteristic? = null
     private var writeCharacteristicHolderSPData: BluetoothGattCharacteristic? = null
+    private var writeCharacteristicHolderConvoy: BluetoothGattCharacteristic? = null
+
+    @Volatile
+    private var rawNotificationListener: RawNotificationListener? = null
+    private val rawCharacteristics =
+        setOf(CasioConstants.CASIO_DATA_REQUEST_CHARACTERISTIC_UUID, CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID)
 
     private val subscribedCharacteristics = mutableSetOf<UUID>()
 
@@ -122,6 +140,11 @@ private class GShockManagerImpl(
                     subscribedCharacteristics.add(char.uuid)
 
                     setNotificationCallback(char).with { _, data ->
+                        val raw = rawNotificationListener
+                        if (raw != null && char.uuid in rawCharacteristics) {
+                            data.value?.let { raw(char.uuid, it) }
+                            return@with
+                        }
                         val hexData =
                             data.value?.joinToString(separator = " ", prefix = "0x") {
                                 String.format("%02X", it)
@@ -180,6 +203,8 @@ private class GShockManagerImpl(
         writeCharacteristicHolderDataRequest = null
         writeCharacteristicHolderSPRequest = null
         writeCharacteristicHolderSPData = null
+        writeCharacteristicHolderConvoy = null
+        rawNotificationListener = null
         characteristicUUIDs.clear()
         subscribedCharacteristics.clear()
 
@@ -190,6 +215,10 @@ private class GShockManagerImpl(
 
     override fun setDataCallback(dataCallback: IDataReceived?) {
         dataReceivedCallback = dataCallback
+    }
+
+    override fun setRawNotificationListener(listener: RawNotificationListener?) {
+        rawNotificationListener = listener
     }
 
     override fun enableNotifications() {
@@ -278,6 +307,7 @@ private class GShockManagerImpl(
             writeCharacteristicHolderNotifications = null
             writeCharacteristicHolderSPRequest = null
             writeCharacteristicHolderSPData = null
+            writeCharacteristicHolderConvoy = null
             characteristicUUIDs.clear()
 
             System.gc()
@@ -307,6 +337,10 @@ private class GShockManagerImpl(
             writeCharacteristicHolderDataRequest =
                 getCharacteristic(
                     CasioConstants.CASIO_DATA_REQUEST_CHARACTERISTIC_UUID,
+                )
+            writeCharacteristicHolderConvoy =
+                getCharacteristic(
+                    CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID,
                 )
             if (findCharacteristic(gatt, CasioConstants.CASIO_SET_CONFIGURATION_CHARACTERISTIC_UUID)) {
                 writeCharacteristicHolderSPRequest =
@@ -412,6 +446,7 @@ private class GShockManagerImpl(
                 GetSetMode.DATA_REQUEST -> CasioConstants.CASIO_DATA_REQUEST_CHARACTERISTIC_UUID
                 GetSetMode.SP_REQUEST -> CasioConstants.CASIO_SET_CONFIGURATION_CHARACTERISTIC_UUID
                 GetSetMode.SP_DATA -> CasioConstants.CASIO_GET_CONFIGURATION_CHARACTERISTIC_UUID
+                GetSetMode.CONVOY -> CasioConstants.CASIO_CONVOY_CHARACTERISTIC_UUID
             }
         return characteristicUUIDs.containsKey(uuid.toString())
     }
@@ -439,10 +474,13 @@ private class GShockManagerImpl(
                 GetSetMode.DATA_REQUEST -> writeCharacteristicHolderDataRequest
                 GetSetMode.SP_REQUEST -> writeCharacteristicHolderSPRequest
                 GetSetMode.SP_DATA -> writeCharacteristicHolderSPData
+                GetSetMode.CONVOY -> writeCharacteristicHolderConvoy
             }
 
         val writeType =
-            if (handle == GetSetMode.GET || handle == GetSetMode.NOTIFY || handle == GetSetMode.SP_REQUEST) {
+            if (handle == GetSetMode.GET || handle == GetSetMode.NOTIFY || handle == GetSetMode.SP_REQUEST ||
+                handle == GetSetMode.CONVOY
+            ) {
                 BluetoothGattCharacteristic.WRITE_TYPE_NO_RESPONSE
             } else {
                 BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT

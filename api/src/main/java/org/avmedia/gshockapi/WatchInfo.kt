@@ -123,6 +123,9 @@ data object WatchInfo {
     val hasStepCounterMock: Boolean
         @RequiresApi(Build.VERSION_CODES.O)
         get() = getState().info.hasStepCounterMock
+    val hasSleepData: Boolean
+        @RequiresApi(Build.VERSION_CODES.O)
+        get() = getState().info.hasSleepData
     val hasNewTimeFormat: Boolean
         @RequiresApi(Build.VERSION_CODES.O)
         get() = getState().info.hasNewTimeFormat
@@ -218,6 +221,7 @@ data object WatchInfo {
         val hasMultipleFonts: Boolean = false,
         val hasStepCounter: Boolean = false,
         val hasStepCounterMock: Boolean = false,
+        val hasSleepData: Boolean = false,
         val hasNewTimeFormat: Boolean = false,
         val hasTimeAdjustment: Boolean = true,
         val hasSecondDial: Boolean = false,
@@ -367,6 +371,7 @@ data object WatchInfo {
                 hasBatteryLevel = false, alwaysConnected = true, hasDateFormat = false,
                 weekLanguageSupported = false,
                 hasStepCounter = true,
+                hasSleepData = true,
             ),
             ModelInfo(model = WatchModel.DW, hasAutoLight = true, hasReminders = false),
             ModelInfo(
