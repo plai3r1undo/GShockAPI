@@ -209,6 +209,12 @@ interface IGShockAPI {
     )
 
     /**
+     * Location sent to watches with an almanac (sunrise, sunset, moon age) on the next
+     * [setTime]. Pass nulls to use the home city's coordinates instead.
+     */
+    fun setAlmanacLocation(latitude: Double?, longitude: Double?)
+
+    /**
      * Retrieves the list of alarms from the watch.
      *
      * @return An ArrayList of [org.avmedia.gshockapi.model.Alarm] objects.

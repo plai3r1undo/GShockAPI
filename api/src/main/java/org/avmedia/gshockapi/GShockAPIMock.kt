@@ -169,6 +169,10 @@ class GShockAPIMock(private val context: Context) : IGShockAPI {
         Timber.i("Time set to $timeZone")
     }
 
+    override fun setAlmanacLocation(latitude: Double?, longitude: Double?) {
+        Timber.i("Almanac location set to $latitude, $longitude")
+    }
+
     override suspend fun getAlarms(): ArrayList<Alarm> {
         delay(0)
 
