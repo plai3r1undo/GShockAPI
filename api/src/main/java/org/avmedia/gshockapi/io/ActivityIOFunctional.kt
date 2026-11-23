@@ -1,5 +1,6 @@
 package org.avmedia.gshockapi.io
 
+import org.avmedia.gshockapi.model.HeartRateSample
 import org.avmedia.gshockapi.model.LifeLogActivity
 import org.avmedia.gshockapi.model.LifeLogFile
 import org.avmedia.gshockapi.model.StepInterval
@@ -18,20 +19,26 @@ import java.time.temporal.ChronoUnit
  * - 0x51: energy for the same 5-minute intervals: `<u16 LE> 04 08`, 1/128 kcal
  *   (990 = 7.7 kcal at rest). Over 2.5 h its sum matched the growth of the daily kcal total
  *   within 0.5%.
+ * - 0x52: heart rate, one record per completed 2-minute interval, oldest first:
+ *   `<bpm u8> <quality u8> 04 08`, `fe fe` = no reading. The last interval ends at the transfer
+ *   time rounded down to 2 min (same layout as 0x50). Quality is 100/75/50/25.
  * - 0x65: daily summary; bytes 39/40 (from file start) = active time h, m.
  *
- * Not decoded (kept raw by callers): 0x52 (2-min, all 0xFEFE so far), 0x56 (1-min intensity
+ * Not decoded (kept raw by callers): 0x56 (1-min intensity
  * flag, tentative), 0x72 (32-byte motion record per 5 min), rest of 0x00/0x65.
  */
 object ActivityIOFunctional {
     const val FILE_STATUS = 0x00
     const val FILE_STEPS_5MIN = 0x50
     const val FILE_ENERGY_5MIN = 0x51
+    const val FILE_HEART_RATE_2MIN = 0x52
     const val FILE_DAILY_SUMMARY = 0x65
 
     private const val FILE_HEADER = 5
     private const val STEP_RECORD_SIZE = 4
     private const val INTERVAL_MINUTES = 5L
+    private const val HEART_RATE_INTERVAL_MINUTES = 2L
+    private const val NO_HEART_RATE = 0xFE
     private const val ACTIVE_HOURS_OFFSET = 39
     private const val ACTIVE_MINUTES_OFFSET = 40
     private const val EMPTY = 0xFEFE
@@ -56,6 +63,7 @@ object ActivityIOFunctional {
             activeTime = byId[FILE_DAILY_SUMMARY]?.data?.let(::activeTime),
             intervals = byId[FILE_STEPS_5MIN]?.data
                 ?.let { stepIntervals(it, timestamp, byId[FILE_ENERGY_5MIN]?.data) }.orEmpty(),
+            heartRate = byId[FILE_HEART_RATE_2MIN]?.data?.let { heartRate(it, timestamp) }.orEmpty(),
         )
     }
 
@@ -65,12 +73,9 @@ object ActivityIOFunctional {
         energyFile: ByteArray? = null,
     ): List<StepInterval> {
         val values = records(file)
+        val first = firstIntervalStart(timestamp, INTERVAL_MINUTES, values.size)
         // Energy uses the same intervals; ignore it if the counts ever disagree.
         val energy = energyFile?.let(::records)?.takeIf { it.size == values.size }
-        val minute = timestamp.truncatedTo(ChronoUnit.MINUTES)
-        val minuteOfHour = minute.atZone(ZoneOffset.UTC).minute
-        val end = minute.minus(Duration.ofMinutes(minuteOfHour % INTERVAL_MINUTES))
-        val first = end.minus(Duration.ofMinutes(INTERVAL_MINUTES * values.size))
         return values.mapIndexedNotNull { i, v ->
             if (v == EMPTY) null
             else StepInterval(
@@ -81,8 +86,33 @@ object ActivityIOFunctional {
         }
     }
 
+    internal fun heartRate(file: ByteArray, timestamp: java.time.Instant): List<HeartRateSample> {
+        val offsets = recordOffsets(file)
+        val first = firstIntervalStart(timestamp, HEART_RATE_INTERVAL_MINUTES, offsets.size)
+        return offsets.mapIndexedNotNull { i, at ->
+            val bpm = u8(file, at)
+            if (bpm == NO_HEART_RATE || bpm == 0) null
+            else HeartRateSample(
+                start = first.plus(Duration.ofMinutes(HEART_RATE_INTERVAL_MINUTES * i)),
+                bpm = bpm,
+                quality = u8(file, at + 1),
+            )
+        }
+    }
+
+    /** Start of the first of [count] intervals of [minutes] that end at [timestamp] rounded down to [minutes]. */
+    private fun firstIntervalStart(timestamp: java.time.Instant, minutes: Long, count: Int): java.time.Instant {
+        val minute = timestamp.truncatedTo(ChronoUnit.MINUTES)
+        val minuteOfHour = minute.atZone(ZoneOffset.UTC).minute
+        val end = minute.minus(Duration.ofMinutes(minuteOfHour % minutes))
+        return end.minus(Duration.ofMinutes(minutes * count))
+    }
+
+    private fun recordOffsets(file: ByteArray): List<Int> =
+        (FILE_HEADER until file.size - STEP_RECORD_SIZE + 1 step STEP_RECORD_SIZE).toList()
+
     private fun records(file: ByteArray): List<Int> =
-        (FILE_HEADER until file.size - STEP_RECORD_SIZE + 1 step STEP_RECORD_SIZE).map { u16(file, it) }
+        recordOffsets(file).map { u16(file, it) }
 
     private fun activeTime(file: ByteArray): Duration? {
         if (file.size <= ACTIVE_MINUTES_OFFSET) return null

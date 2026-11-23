@@ -13,11 +13,24 @@ data class StepInterval(
 )
 
 /**
+ * Heart rate measured in the 2-minute interval starting at [start]. [quality] is the watch's
+ * confidence: 100, 75, 50 or 25 (low values go with motion artefacts, e.g. 158 bpm at 25).
+ */
+@Keep
+data class HeartRateSample(
+    val start: Instant,
+    val bpm: Int,
+    val quality: Int,
+)
+
+/**
  * Daytime activity from one life-log transfer (DW-H5600).
  *
  * [todaySteps], [todayKcal] and [activeTime] are the watch's running totals for its current
  * (local) day at [timestamp]; they match what the watch shows. [intervals] are the 5-minute
  * step bins completed since the previous transfer (the watch sends each bin once).
+ * [heartRate] are the 2-minute heart-rate readings since the previous transfer; empty while
+ * the watch is not measuring (so far: only in its night window).
  */
 @Keep
 data class LifeLogActivity(
@@ -28,4 +41,5 @@ data class LifeLogActivity(
     val todayKcal: Int,
     val activeTime: Duration?,
     val intervals: List<StepInterval>,
+    val heartRate: List<HeartRateSample> = emptyList(),
 )
