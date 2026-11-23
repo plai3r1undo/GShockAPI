@@ -52,7 +52,10 @@ data class Hypnogram(
  */
 @Keep
 data class NightlyRecharge(
-    /** Local calendar date on which sleep started (the date the official app files the night under). */
+    /**
+     * Date stored by the watch: the UTC date of [sleepStart]. Unique per night, but for sleep
+     * starting between local midnight and the UTC offset it is the day before the local date.
+     */
     val recordDate: LocalDate,
     /** Sleep start / end. The watch stores these as UTC times of day. */
     val sleepStart: Instant,

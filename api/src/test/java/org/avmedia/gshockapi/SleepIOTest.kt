@@ -124,4 +124,23 @@ class SleepIOTest {
     }
 
     private fun ByteArray.toHexStr() = joinToString("") { "%02x".format(it) }
+
+    /** Sleep starting after local midnight: the watch dates it by the UTC day (the day before). */
+    @Test
+    fun nightStartingAfterLocalMidnightUsesUtcDate() {
+        val files = listOf(
+            org.avmedia.gshockapi.model.LifeLogFile(0x2E, 0x5A, res("recharge_2026-11-23.bin")),
+            org.avmedia.gshockapi.model.LifeLogFile(0x2E, 0x53, res("hypnogram_2026-11-23.bin")),
+        )
+        val night = SleepIOFunctional.combine(files, java.time.ZoneId.of("Europe/Rome")).nights.single()
+        assertEquals(LocalDate.of(2026, 11, 22), night.recordDate)
+        // Watch showed 75 / +3.6; slept 00:36 - 09:27 CET on the 23rd.
+        assertEquals(75, night.sleepCharge)
+        assertEquals(3.6f, (night.ansCharge * 10).toInt() / 10f, 0f)
+        assertEquals(Instant.parse("2026-11-22T23:36:00Z"), night.sleepStart)
+        assertEquals(Instant.parse("2026-11-23T08:27:00Z"), night.sleepEnd)
+        assertEquals(mins(8, 51), night.sleepSpan)
+        assertEquals(mins(8, 6), night.actualSleep)
+        assertNotNull(night.hypnogram)
+    }
 }

@@ -83,12 +83,9 @@ object SleepIOFunctional {
         val bedTime = LocalTime.of(u8(d, 43) % 24, u8(d, 44) % 60)
         val wakeTime = LocalTime.of(u8(d, 45) % 24, u8(d, 46) % 60)
         val span = hm(d, 27)
-        // The record date is the *local* calendar date on which sleep started, while the bedtime is UTC:
-        // pick the UTC day that puts the start on the record date in the watch's (= phone's) time zone.
-        val start =
-            (-1L..1L).map { date.plusDays(it).atTime(bedTime).toInstant(ZoneOffset.UTC) }
-                .firstOrNull { it.atZone(zone).toLocalDate() == date }
-                ?: date.atTime(bedTime).toInstant(ZoneOffset.UTC)
+        // The record date is the *UTC* date of the bedtime (also UTC), so together they are the exact
+        // start. Verified on 2026-11-23: record 2026-11-22 + bed 23:36 UTC = 00:36 CET on the 23rd.
+        val start = date.atTime(bedTime).toInstant(ZoneOffset.UTC)
         var end = start.plus(span)
         // Wake time is authoritative to the minute; keep it consistent with the span.
         val wakeCandidate = end.atZone(ZoneOffset.UTC).toLocalDate().atTime(wakeTime).toInstant(ZoneOffset.UTC)
