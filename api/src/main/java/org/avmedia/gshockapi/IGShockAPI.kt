@@ -169,6 +169,13 @@ interface IGShockAPI {
     suspend fun getStepSummary(): Int
 
     /**
+     * Downloads new sleep data (Nightly Recharge: sleep charge, ANS charge, stages, hypnogram)
+     * from watches that support it (DW-H5600). The watch only sends nights it has not sent
+     * before, so the caller must persist the result.
+     */
+    suspend fun getSleepData(): org.avmedia.gshockapi.model.SleepData
+
+    /**
      * Retrieves the current timer setting in seconds.
      *
      * @return Timer value in seconds.

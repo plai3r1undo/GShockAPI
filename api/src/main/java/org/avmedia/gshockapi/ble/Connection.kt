@@ -145,6 +145,22 @@ object Connection {
 
     fun isServiceSupported(handle: GetSetMode): Boolean = bleManager?.isServiceSupported(handle) == true
 
+    /** Enqueues a write in the caller's order (unlike [write], which launches a coroutine per call). */
+    suspend fun writeInOrder(
+        handle: GetSetMode,
+        data: ByteArray,
+    ) {
+        val manager = bleManager ?: run {
+            ProgressEvents.onNext("ApiError", "Connection manager is not initialized")
+            return
+        }
+        manager.write(handle, data)
+    }
+
+    fun setRawNotificationListener(listener: RawNotificationListener?) {
+        bleManager?.setRawNotificationListener(listener)
+    }
+
     fun startConnection(
         context: Context,
         deviceId: String?,

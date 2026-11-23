@@ -405,6 +405,10 @@ class GShockAPI(private val context: Context) : IGShockAPI {
         return getStepCount(peek = false).currentDaySteps ?: 0
     }
 
+    override suspend fun getSleepData(): org.avmedia.gshockapi.model.SleepData {
+        return org.avmedia.gshockapi.io.SleepIO.request()
+    }
+
     /**
      * Get Timer value in seconds.
      *

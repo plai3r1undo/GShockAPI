@@ -25,6 +25,10 @@ object CasioConstants {
     val CASIO_DATA_REQUEST_CHARACTERISTIC_UUID: UUID =
         UUID.fromString("26eb0023-b012-49a8-b1f8-394fb2032b0f")
 
+    /** Bulk data channel for life-log file transfers (DW-H5600 sleep data etc.). */
+    val CASIO_CONVOY_CHARACTERISTIC_UUID: UUID =
+        UUID.fromString("26eb0024-b012-49a8-b1f8-394fb2032b0f")
+
     val CASIO_SET_CONFIGURATION_CHARACTERISTIC_UUID: UUID =
         UUID.fromString("26eb002e-b012-49a8-b1f8-394fb2032b0f")
 

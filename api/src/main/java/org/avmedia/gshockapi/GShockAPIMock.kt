@@ -146,6 +146,10 @@ class GShockAPIMock(private val context: Context) : IGShockAPI {
         return 0
     }
 
+    override suspend fun getSleepData(): org.avmedia.gshockapi.model.SleepData {
+        return org.avmedia.gshockapi.model.SleepData.unavailable("mock")
+    }
+
     override suspend fun getTimer(): Int {
         return 4 * 60
     }
