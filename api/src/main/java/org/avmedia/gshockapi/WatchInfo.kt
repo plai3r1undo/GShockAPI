@@ -126,6 +126,9 @@ data object WatchInfo {
     val hasSleepData: Boolean
         @RequiresApi(Build.VERSION_CODES.O)
         get() = getState().info.hasSleepData
+    val hasAlmanac: Boolean
+        @RequiresApi(Build.VERSION_CODES.O)
+        get() = getState().info.hasAlmanac
     val hasNewTimeFormat: Boolean
         @RequiresApi(Build.VERSION_CODES.O)
         get() = getState().info.hasNewTimeFormat
@@ -222,6 +225,8 @@ data object WatchInfo {
         val hasStepCounter: Boolean = false,
         val hasStepCounterMock: Boolean = false,
         val hasSleepData: Boolean = false,
+        /** The watch computes sunrise/sunset/moon age from the home city location (0x24). */
+        val hasAlmanac: Boolean = false,
         val hasNewTimeFormat: Boolean = false,
         val hasTimeAdjustment: Boolean = true,
         val hasSecondDial: Boolean = false,
@@ -372,6 +377,7 @@ data object WatchInfo {
                 weekLanguageSupported = false,
                 hasStepCounter = true,
                 hasSleepData = true,
+                hasAlmanac = true,
             ),
             ModelInfo(model = WatchModel.DW, hasAutoLight = true, hasReminders = false),
             ModelInfo(

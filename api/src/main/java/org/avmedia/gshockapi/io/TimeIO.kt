@@ -236,6 +236,9 @@ object TimeIO {
         } else if (WatchInfo.hasHomeTime) {
             writeHomeTimes()
         }
+        if (WatchInfo.hasAlmanac) {
+            AlmanacIO.writeHomeLocation()
+        }
     }
 
     suspend fun writeHomeTimes() {

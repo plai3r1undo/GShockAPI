@@ -11,6 +11,7 @@ import org.avmedia.gshockapi.ble.Connection
 import org.avmedia.gshockapi.ble.GShockPairingManager
 import org.avmedia.gshockapi.ble.GetSetMode
 import org.avmedia.gshockapi.casio.MessageDispatcher
+import org.avmedia.gshockapi.io.AlmanacIO
 import org.avmedia.gshockapi.io.AppInfoIO
 import org.avmedia.gshockapi.io.AppNotificationIO
 import org.avmedia.gshockapi.io.ButtonPressedIO
@@ -500,6 +501,10 @@ class GShockAPI(private val context: Context) : IGShockAPI {
      *
      * @return ArrayList<[org.avmedia.gshockapi.model.Alarm]>
      */
+
+    override fun setAlmanacLocation(latitude: Double?, longitude: Double?) {
+        AlmanacIO.setLocation(latitude, longitude)
+    }
 
     override suspend fun getAlarms(): ArrayList<Alarm> {
         return WatchInfo.protocol.getAlarms()
