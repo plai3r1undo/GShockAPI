@@ -92,6 +92,10 @@ private class GShockManagerImpl(
 
     private val subscribedCharacteristics = mutableSetOf<UUID>()
 
+    // Characteristics found in isRequiredServiceSupported() whose notifications are enabled
+    // in initialize(), so onDeviceReady fires only after every subscription completed.
+    private val pendingSubscriptions = mutableListOf<BluetoothGattCharacteristic>()
+
     var dataReceivedCallback: IDataReceived? = null
     private lateinit var device: BluetoothDevice
     override var connectionState = ConnectionState.DISCONNECTED
@@ -103,6 +107,21 @@ private class GShockManagerImpl(
 
     override fun initialize() {
         super.initialize()
+        // Requests enqueued here form the init queue: onDeviceReady (and with it the app's
+        // init() and its 3 s timeouts) waits until all of them are done. The DW-H5600 drops to
+        // a ~390 ms connection interval right after connecting, so each subscription takes
+        // ~2.5 s; enqueued anywhere else they delayed the first reads past those timeouts.
+        pendingSubscriptions.forEach { char ->
+            enableNotifications(char)
+                .fail { _, status ->
+                    Timber.d("Failed to enable notifications for ${char.uuid}: $status")
+                }
+                .done {
+                    Timber.d("Subscribed to notifications: ${char.uuid}")
+                }
+                .enqueue()
+        }
+        pendingSubscriptions.clear()
         ProgressEvents.onNext("BleManagerInitialized")
     }
 
@@ -152,14 +171,7 @@ private class GShockManagerImpl(
                         Timber.d("Notification from ${char.uuid}: $hexData")
                         dataReceivedCallback?.dataReceived(hexData)
                     }
-                    enableNotifications(char)
-                        .fail { _, status ->
-                            Timber.d("Failed to enable notifications for ${char.uuid}: $status")
-                        }
-                        .done {
-                            Timber.d("Subscribed to notifications: ${char.uuid}")
-                        }
-                        .enqueue()
+                    pendingSubscriptions.add(char)
                 }
             }
         }
@@ -207,6 +219,7 @@ private class GShockManagerImpl(
         rawNotificationListener = null
         characteristicUUIDs.clear()
         subscribedCharacteristics.clear()
+        pendingSubscriptions.clear()
 
         if (isReady) {
             disconnect().enqueue()
